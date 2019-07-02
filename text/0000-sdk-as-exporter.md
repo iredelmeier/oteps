@@ -4,9 +4,10 @@ Invert the exporter and SDK architecture such that the SDK becomes an exporter i
 
 ## Motivation
 
-* Addresses user concerns, e.g., https://github.com/open-telemetry/opentelemetry-go/issues/23#issuecomment-505667583
-* Increases surface area that can be shared across vendors
-* ...
+This RFC addresses two main concerns:
+
+1. Prevent the need to reimplement core code in order to OpenTelemtry without the full SDK
+1. Enable the API to provide concrete types for improved usability
 
 ## Explanation
 
@@ -163,15 +164,26 @@ If this is too confusing, we could explicitly redefine those exporters that are 
 
 Most vendor-specific requirements should be addressable through either exporters or by extending the core API, depending on the particular requirement and whether it needs user "intervention" or not. For instance, adding another ID to every span could be done through a transformative exporter, whereas allowing users to add logs to spans must be done through the API itself.
 
+Additional exporters for certain "events" (e.g., creating a span; finishing a span) and/or callbacks for those same event types could also be provided.
+
 ## Prior art and alternatives
 
-What are some prior and/or alternative approaches? For instance, is there a corresponding feature in OpenTracing or OpenCensus? What are some ideas that you have rejected?
+The three main prior art examples are OpenTracing, OpenCensus, and the existing OpenTelemetry architecture.
+
+**OpenTracing** handles export functionality by having each vendor (or other party) reimplement the whole API. While this maximizes flexibility for vendors, it also means that everyone must redo a lot of the same logic - even if it's vendor-agnostic.
+
+**OpenCensus** handles it by having a single implementation which then sends data to tracing and stats exporters. The implementation is itself opinionated and sometimes stateful.
+
+The **existing OpenTelemetry architecture** essentially combines the OpenTracing and OpenCensus approaches. As with OpenTracing, the core API is itself an interface that can have different implementations. The OpenCensus "opinionated implementation" is then implemented as a _particular_ implementation (the "SDK"), which in turn supports exporters.
 
 ## Open questions
 
-What are some questions that you know aren't resolved yet by the RFC? These may be questions that could be answered through further discussion, implementation experiments, or anything else that the future may bring.
+* Does this approach actually satisfy user concerns?
+* Is this approach sufficient for all vendors' needs?
+* Should all exporters be treated equivalently regardless of purpose, or should they split up into (for example) "exporters" and "transformers"?
 
 ## Future possibilities
 
-What are some future changes that this proposal would enable?
-
+* Event exporting and/or callbacks, e.g., for starting or finishing spans
+* More decoupling of functionality from the SDK
+* List and implementation of "standard" transformative exporters
