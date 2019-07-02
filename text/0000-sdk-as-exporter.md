@@ -153,9 +153,15 @@ In particular, functionality for batching, limiting the number of attributes per
 
 ## Trade-offs and mitigations
 
-What are some (known!) drawbacks? What are some ways that they might be mitigated?
+### "Closed" vs "transformative" exporters
 
-Note that mitigations do not need to be complete *solutions*, and that they do not need to be accomplished directly through your proposal. A suggested mitigation may even warrant its own RFC!
+As currently proposed, all exporters are treated equally - whether they are composable or not.
+
+If this is too confusing, we could explicitly redefine those exporters that are composable as `Transformers`.
+
+### Vendor-specific needs
+
+Most vendor-specific requirements should be addressable through either exporters or by extending the core API, depending on the particular requirement and whether it needs user "intervention" or not. For instance, adding another ID to every span could be done through a transformative exporter, whereas allowing users to add logs to spans must be done through the API itself.
 
 ## Prior art and alternatives
 
