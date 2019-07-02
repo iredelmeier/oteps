@@ -14,7 +14,7 @@ This RFC proposes that the OpenTelemetry API follow the following architecture:
 
 ![Proposed API architecture](./0000-api-architecture.png)
 
-This is a substantial departure from the [current architecture](https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/language-library-design.png). In particular:
+This is a substantial departure from the [current architecture](https://github.com/open-telemetry/opentelemetry-specification/blob/893a1dc621798cfc301f05bfb46cc0786332050a/specification/language-library-design.png). In particular:
 
 * The API adopts a concrete implementation, rather than an abstract interface with different implementations including the SDK, a minimimal implementation, vendor-specific implementations, etc.
 * The API sends data **directly** to exporters, rather than the SDK sending data to exporters
@@ -102,17 +102,54 @@ func (e exporter) ExportSpan(span trace.Span) {
 }
 ```
 
-In particular, the SDK itself becomes an exporter. Please see the section on [internal details](#internal-details) for more.
+In particular, the SDK itself becomes an exporter. Please see the section on [SDK implementation](#sdk-implementation) for more.
 
 ## Internal details
 
-From a technical perspective, how do you propose accomplishing the proposal? In particular, please explain:
+### API implementation
 
-* How the change would impact and interact with existing functionality
-* Likely error modes (and how to handle them)
-* Corner cases (and how to handle them)
+This RFC proposes that the API implementation should be both **concrete** and (effectively) **stateless**. What does this actually entail?
 
-While you do not need to prescribe a particular implementation - indeed, RFCs should be about **behaviour**, not implementation! - it may be useful to provide at least one suggestion as to how the proposal *could* be implemented. This helps reassure reviewers that implementation is at least possible, and often helps them inspire them to think more deeply about trade-offs, alternatives, etc.
+* The API should ensure some basic, cross-vendor state can be attached to spans without user intervention, e.g., `traceID`, `spanID`, `parentID`, `startTime`, `finishTime`
+* The API should allow the end user to attach certain additional data to a span, e.g., logs, tags or attributes, etc.
+  * This RFC intentional is intentionally unopinionated about what this data entails
+* Any vendor-specific state may be supplied by exporters
+* The API should not explicitly track any state independent of what is tracked, or held onto, by application code
+  * e.g., in Go, an active span may be stored on a `context.Context` and sent to a `SpanExporter` when the user finishes it
+    * If the `context.Context` goes out of scope without the user finishing the span, the span will be "lost" and will be garbage collected alongside the `context.Context` itself
+    * It is up to the `SpanExporter` chosen by the user to manage the span once it has been exported
+
+### Data type-specific exporters
+
+Each "data type" - e.g., span or particular metric type - should have a corresponding exporter type.
+
+Particular exporter _implementations_ may support exporting multiple data types, but are not required to. For exporters that support multiple types, end users must still be able to opt into using the exporter for only a subset of supported types. For example, if an exporter supports both spans and measures, a user should be able to use the exporter for spans but not for measures (or for measures but not spans).
+
+This allowance for data type-specific exporters is significant for multiple reasons:
+
+* Facilitates forward compatibility: as new data types get added, existing exporters will stay usable out of the box
+* Allows users to use completely different exporters for different purposes, e.g., Jaeger for spans and Prometheus for metrics
+
+### Default exporter functionality
+
+Out of the box, default exporter functionality should be equivalent to immediately throwing out whatever data is exported. This may be implemented through some sort of no-op exporter or through an "optional" exporter, depending on what is most appropriate for the particular language.
+
+In particular, the default behaviour **must**:
+
+* Be lightweight, i.e., have minimal memory and CPU overhead
+* Not error due to the absence of a user-provided exporter
+
+### Composable exporters
+
+While some exporters should be "end" exporters - e.g., sending data across the network - others are intended to be composable such that they may be reused by different "end" exporters.
+
+For example, functionality for **batching** data could be implemented as a reusable exporter.
+
+#### SDK implementation
+
+Under the proposed architecture, the SDK itself would be implemented as an "end" exporter built upon a series of "composable" exporters. It would support exporting all of the exportable data types.
+
+In particular, functionality for batching, limiting the number of attributes per span, etc. would be implemented through composable exporters which are then used internally by the SDK exporter.
 
 ## Trade-offs and mitigations
 
