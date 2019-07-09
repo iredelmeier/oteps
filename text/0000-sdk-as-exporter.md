@@ -6,7 +6,7 @@ Invert the exporter and SDK architecture such that the SDK becomes an exporter i
 
 This RFC addresses two main concerns:
 
-1. Prevent the need to reimplement core code in order to OpenTelemtry without the full SDK
+1. Prevent the need to reimplement core code in order to use OpenTelemtry without the full SDK
 1. Enable the API to provide concrete types for improved usability
 
 ## Explanation
